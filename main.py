@@ -1,3 +1,5 @@
+from copy import deepcopy
+from hashlib import new
 import os
 import time
 from random import randrange
@@ -59,22 +61,19 @@ def root():
     return {"message": "Hello World"}
 
 
-@app.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    return {"status": "success"}
-
-
 @app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM posts""")
-    posts = cursor.fetchall()
+def get_posts(db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM posts""")
+    # posts = cursor.fetchall()
+    posts = db.query(models.Post).all()
     return {"data": posts}
 
 
 @app.get("/posts/{id}")
-def get_post(id: int):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (id,))
-    post = cursor.fetchone()
+def get_post(id: int, db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (id,))
+    # post = cursor.fetchone()
+    post = db.query(models.Post).filter(models.Post.id == id).first()
     if post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -84,14 +83,19 @@ def get_post(id: int):
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post):
+def create_posts(post: Post, db: Session = Depends(get_db)):
     # DO USE execute() and not f-strings! The library shields us from SQL injections
-    cursor.execute(
-        f"""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""",
-        (post.title, post.content, post.published)
-    )
-    new_post = cursor.fetchone()
-    conn.commit()
+    # cursor.execute(
+    #     f"""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""",
+    #     (post.title, post.content, post.published)
+    # )
+    # new_post = cursor.fetchone()
+    # conn.commit()
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    # This retrieves the created post and store it again (replaces the RETURNING)
+    db.refresh(new_post)
     return {"data": new_post}
 
 
@@ -102,29 +106,37 @@ def create_posts(post: Post):
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (id,))
-    deleted_post = cursor.fetchone()
-    if deleted_post is None:
+def delete_post(id: int, db: Session = Depends(get_db)):
+    # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (id,))
+    # deleted_post = cursor.fetchone()
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    post = post_query.first()
+    if post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id {id} does not exist"
         )
-    conn.commit()
+    post_query.delete(synchronize_session=False)
+    db.commit()
+    # conn.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post):
-    cursor.execute(
-        """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
-        (post.title, post.content, post.published, id)
-    )
-    updated_post = cursor.fetchone()
-    if updated_post is None:
+def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+    # cursor.execute(
+    #     """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
+    #     (post.title, post.content, post.published, id)
+    # )
+    # updated_post = cursor.fetchone()
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    present_post = post_query.first()
+    if present_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id {id} does not exist"
         )
-    conn.commit()
-    return {"data": updated_post}
+    # conn.commit()
+    post_query.update(post.dict(), synchronize_session=False)
+    db.commit()
+    return {"data": post_query.first()}
