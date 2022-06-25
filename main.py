@@ -1,13 +1,14 @@
 import os
 import time
 import psycopg2
-from psycopg2.extras import RealDictCursor
-from sqlalchemy.orm import Session
 import models
 import schemas
+from typing import List
+from psycopg2.extras import RealDictCursor
+from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Response, status, Depends
 from database import engine, get_db
-from typing import List
+from utils import hash
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -128,3 +129,29 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
     return post_query.first()
+
+
+@app.post(
+    "/users",
+    status_code=status.HTTP_201_CREATED,
+    response_model=schemas.UserOut
+)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    user.password = hash(user.password)
+
+    new_user = models.User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+@app.get("/users/{id}", response_model=schemas.UserOut)
+def get_user(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {id} does not exist"
+        )
+    return user
