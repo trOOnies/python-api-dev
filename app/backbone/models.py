@@ -1,7 +1,7 @@
-from database import Base
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from sqlalchemy.sql.expression import text
+from backbone.database import Base
 
 
 class Post(Base):

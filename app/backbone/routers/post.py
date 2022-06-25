@@ -1,58 +1,13 @@
-import os
-import time
-import psycopg2
-import models
-import schemas
 from typing import List
-from psycopg2.extras import RealDictCursor
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException, Response, status, Depends
-from database import engine, get_db
-from utils import hash
+from fastapi import HTTPException, Response, status, Depends, APIRouter
+from ..database import get_db
+from .. import models, schemas
 
-models.Base.metadata.create_all(bind=engine)
-app = FastAPI()
-
-
-print("Connecting to database...")
-while True:
-    try:
-        conn = psycopg2.connect(
-            host="localhost",
-            database="fastapi",
-            user="postgres",
-            password=os.environ.get("PSQL_PASS"),
-            cursor_factory=RealDictCursor,
-        )
-        cursor = conn.cursor()
-        print("Database connection established")
-        break
-    except Exception as err:
-        print("Database connection failed")
-        print("Error:", err)
-    time.sleep(2)
+router = APIRouter(prefix='/posts', tags=['Posts'])
 
 
-my_posts = [
-    {
-        "title": "Hello World",
-        "content": "My first post",
-        "published": True,
-        "id": 1,
-    },
-]
-
-
-def find_index_post(id):
-    return next(i for i, p in enumerate(my_posts) if p["id"] == id)
-
-
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
-
-
-@app.get("/posts", response_model=List[schemas.Post])
+@router.get("/", response_model=List[schemas.Post])
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
@@ -60,7 +15,7 @@ def get_posts(db: Session = Depends(get_db)):
     return posts
 
 
-@app.get("/posts/{id}", response_model=schemas.Post)
+@router.get("/{id}", response_model=schemas.Post)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (id,))
     # post = cursor.fetchone()
@@ -73,8 +28,8 @@ def get_post(id: int, db: Session = Depends(get_db)):
     return post
 
 
-@app.post(
-    "/posts",
+@router.post(
+    "/",
     status_code=status.HTTP_201_CREATED,
     response_model=schemas.Post,
 )
@@ -94,7 +49,7 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     return new_post
 
 
-@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (id,))
     # deleted_post = cursor.fetchone()
@@ -111,7 +66,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}", response_model=schemas.Post)
+@router.put("/{id}", response_model=schemas.Post)
 def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute(
     #     """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
@@ -129,29 +84,3 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
     return post_query.first()
-
-
-@app.post(
-    "/users",
-    status_code=status.HTTP_201_CREATED,
-    response_model=schemas.UserOut
-)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    user.password = hash(user.password)
-
-    new_user = models.User(**user.dict())
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
-
-
-@app.get("/users/{id}", response_model=schemas.UserOut)
-def get_user(id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id {id} does not exist"
-        )
-    return user
