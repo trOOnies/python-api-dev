@@ -1,10 +1,11 @@
+from socket import AF_BLUETOOTH
 import psycopg2
 import time
 import os
 import backbone.models as models
 from fastapi import FastAPI
 from psycopg2.extras import RealDictCursor
-from backbone.routers import post, user
+from backbone.routers import post, user, auth
 from backbone.database import engine
 
 models.Base.metadata.create_all(bind=engine)
@@ -46,6 +47,7 @@ def find_index_post(id):
 
 app.include_router(post.router)
 app.include_router(user.router)
+app.include_router(auth.router)
 
 
 @app.get("/")
