@@ -1,35 +1,11 @@
-from socket import AF_BLUETOOTH
-import psycopg2
-import time
-import os
 import backbone.models as models
 from fastapi import FastAPI
-from psycopg2.extras import RealDictCursor
 from backbone.routers import post, user, auth
 from backbone.database import engine
+from backbone.config import settings
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
-
-
-print("Connecting to database...")
-while True:
-    try:
-        conn = psycopg2.connect(
-            host="localhost",
-            database="fastapi",
-            user="postgres",
-            password=os.environ.get("PSQL_PASS"),
-            cursor_factory=RealDictCursor,
-        )
-        cursor = conn.cursor()
-        print("Database connection established")
-        break
-    except Exception as err:
-        print("Database connection failed")
-        print("Error:", err)
-    time.sleep(2)
-
 
 my_posts = [
     {

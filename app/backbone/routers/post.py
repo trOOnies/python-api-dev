@@ -9,12 +9,17 @@ router = APIRouter(prefix='/posts', tags=['Posts'])
 
 @router.get("/", response_model=List[schemas.Post])
 def get_posts(
+    limit: int = 10,
+    skip: int = 0,
+    search: str = "",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(oauth2.get_current_user)
 ):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
-    posts = db.query(models.Post).all()
+    posts = db.query(models.Post).filter(
+        models.Post.title.contains(search)
+    ).limit(limit).offset(skip).all()
     return posts
 
 
@@ -52,7 +57,8 @@ def create_posts(
     # )
     # new_post = cursor.fetchone()
     # conn.commit()
-    new_post = models.Post(**post.dict())
+
+    new_post = models.Post(owner_id=current_user.id, **post.dict())
     db.add(new_post)
     db.commit()
     # This retrieves the created post and store it again (replaces the RETURNING)
@@ -75,6 +81,13 @@ def delete_post(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id {id} does not exist"
         )
+
+    if post.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform requested action"
+        )
+
     post_query.delete(synchronize_session=False)
     db.commit()
     # conn.commit()
@@ -100,6 +113,13 @@ def update_post(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id {id} does not exist"
         )
+
+    if post.present_post != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform requested action"
+        )
+
     # conn.commit()
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
