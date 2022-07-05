@@ -1,8 +1,7 @@
 import backbone.models as models
 from fastapi import FastAPI
-from backbone.routers import post, user, auth
+from backbone.routers import post, user, auth, vote
 from backbone.database import engine
-from backbone.config import settings
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -24,6 +23,7 @@ def find_index_post(id):
 app.include_router(post.router)
 app.include_router(user.router)
 app.include_router(auth.router)
+app.include_router(vote.router)
 
 
 @app.get("/")
