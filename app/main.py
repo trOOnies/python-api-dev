@@ -1,9 +1,7 @@
-import backbone.models as models
 from fastapi import FastAPI
 from backbone.routers import post, user, auth, vote
-from backbone.database import engine
 
-models.Base.metadata.create_all(bind=engine)
+# models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 my_posts = [
