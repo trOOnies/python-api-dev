@@ -2,7 +2,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from sqlalchemy.sql.expression import text
-from backbone.database import Base
+from app.backbone.database import Base
 
 
 class Post(Base):
