@@ -124,7 +124,7 @@ def update_post(
             detail=f"post with id {id} does not exist"
         )
 
-    if post.present_post != current_user.id:
+    if present_post.id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to perform requested action"
